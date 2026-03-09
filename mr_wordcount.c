@@ -4,7 +4,7 @@
 #include <string.h>
 #include <assert.h>
 
-#include "blfs_mr/mapreduce.h"
+#include "da_mr/mapreduce.h"
 
 void map(const char* input_split_file) {
     FILE *fp = fopen(input_split_file, "r");

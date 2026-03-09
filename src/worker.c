@@ -684,14 +684,14 @@ void worker_context_init(const char* worker_name, const char* worker_ip,
     // g_wctx.output_dir = output_dir;
 
     // build worker's output dir
-    const char* blfs_mr_home_env = getenv("BLFS_MR_HOME");
-    if (blfs_mr_home_env == NULL) {
-        err_exit("[worker.c: worker_context_init()] BLFS_MR_HOME env variable not found.");
+    const char* da_mr_home_env = getenv("DA_MR_HOME");
+    if (da_mr_home_env == NULL) {
+        err_exit("[worker.c: worker_context_init()] DA_MR_HOME env variable not found.");
     }
-    sprintf(g_wctx.mr_exe_dir, "%s/%s", blfs_mr_home_env, MR_EXEC_DIR);
-    sprintf(g_wctx.shared_file_list, "%s/%s", blfs_mr_home_env, SHARED_FILE_LIST);
-    sprintf(g_wctx.shared_dir, "%s/%s", blfs_mr_home_env, SHARED_DIR);
-    sprintf(g_wctx.worker_output_dir, "%s/%s", blfs_mr_home_env, MR_OUTPUT_DIR);
+    sprintf(g_wctx.mr_exe_dir, "%s/%s", da_mr_home_env, MR_EXEC_DIR);
+    sprintf(g_wctx.shared_file_list, "%s/%s", da_mr_home_env, SHARED_FILE_LIST);
+    sprintf(g_wctx.shared_dir, "%s/%s", da_mr_home_env, SHARED_DIR);
+    sprintf(g_wctx.worker_output_dir, "%s/%s", da_mr_home_env, MR_OUTPUT_DIR);
 
     g_wctx.master_conn = NULL;
 

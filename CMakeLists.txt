@@ -7,7 +7,7 @@ if ("${CMAKE_BINARY_DIR}" STREQUAL "${CMAKE_SOURCE_DIR}")
           Remove them, or cmake will refuse to work.")
 endif()
 
-project(Blfs_mr C)
+project(Da_mr C)
 
 set(CMAKE_C_STANDARD 99)
 set(CMAKE_C_STANDARD_REQUIRED ON)
@@ -37,41 +37,41 @@ else()
     endif()
 endif()
 
-add_library(blfs_mr_objs OBJECT 
+add_library(da_mr_objs OBJECT 
     # src/job.c
     src/mapreduce.c
     # src/master.c
     # src/task.c
     # src/worker.c
 )
-target_include_directories(blfs_mr_objs 
+target_include_directories(da_mr_objs 
     PUBLIC
     ${PROJECT_SOURCE_DIR}/include
 )
-target_compile_options(blfs_mr_objs 
+target_compile_options(da_mr_objs 
     PRIVATE
         $<$<CONFIG:Debug>: -D DEBUG_MP -O0 -g>
 )
 find_library(PTHREAD_LIB pthread REQUIRED)
 if (PTHREAD_LIB)
-    target_link_libraries(blfs_mr_objs PUBLIC ${PTHREAD_LIB})
+    target_link_libraries(da_mr_objs PUBLIC ${PTHREAD_LIB})
 endif()
 if(DEBUG_MP)
-    target_compile_definitions(blfs_mr_objs PRIVATE DEBUG_MP)
+    target_compile_definitions(da_mr_objs PRIVATE DEBUG_MP)
 endif()
 # link to utils_objs, utils_ds_objs, ep_engine_objs, mp_objs to get usage requirements
-target_link_libraries(blfs_mr_objs PUBLIC 
+target_link_libraries(da_mr_objs PUBLIC 
     utils_objs
     utils_ds_objs
     ep_engine_objs
     mp_objs
 )
 
-add_library(blfs_mr
+add_library(da_mr
     # $<TARGET_OBJECTS:mp_objs>
 )
-target_link_libraries(blfs_mr PUBLIC
-    blfs_mr_objs
+target_link_libraries(da_mr PUBLIC
+    da_mr_objs
     mp_objs
     ep_engine_objs
     utils_objs
@@ -80,7 +80,7 @@ target_link_libraries(blfs_mr PUBLIC
 
 add_executable(master src/master.c src/job.c)
 target_link_libraries(master PRIVATE 
-    blfs_mr_objs
+    da_mr_objs
     mp_objs
     ep_engine_objs
     utils_objs
@@ -93,7 +93,7 @@ target_compile_options(master
 
 add_executable(worker src/worker.c src/task.c)
 target_link_libraries(worker PRIVATE 
-    blfs_mr_objs
+    da_mr_objs
     mp_objs
     ep_engine_objs
     utils_objs
@@ -104,8 +104,8 @@ target_compile_options(worker
         $<$<CONFIG:Debug>: -O0 -g>
 )
 
-install(DIRECTORY include/blfs_mr DESTINATION include)
-install(TARGETS blfs_mr
+install(DIRECTORY include/da_mr DESTINATION include)
+install(TARGETS da_mr
         ARCHIVE DESTINATION lib)
 
 install(TARGETS master DESTINATION ${PROJECT_SOURCE_DIR}/bin)

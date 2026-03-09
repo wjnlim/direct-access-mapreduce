@@ -94,7 +94,7 @@ do
 done
 
 # send splits to each worker
-remote_dir="\$BLFS_MR_HOME/data/inputs/${metafile_name}"
+remote_dir="\$DA_MR_HOME/data/inputs/${metafile_name}"
 for worker in "${worker_arr[@]}";
 do
     worker_ip="$(awk -F: "/^$worker/ {print \$2}" $workerlist)"

@@ -1,126 +1,134 @@
-# MapReduce Using Block-Level File Sharing over iSCSI
-A lightweight MapReduce framework that uses shared iSCSI block devices to access intermediate data directly between worker nodes without a distributed file system.
+# Direct-Access MapReduce Framework
+
+An experimental MapReduce prototype for direct intermediate-data access over shared block storage.
 
 ## Overview
-This research project presents an experimental MapReduce framework that leverages **shared iSCSI volumes** for direct access to intermediate data.
-Unlike conventional MapReduce implementations (e.g., Hadoop, Spark), which rely on shuffle daemons and network-based data transfer services, this framework enables workers to **read and write intermediate data directly on shared block devices**.
+This repository contains the implementation of this **experimental MapReduce prototype**.
 
-This design:
-* **Simplifies** the MapReduce architecture
-* **Eliminates redundant data transfers** inherent in traditional shuffle mechanisms
-* Enables **block-level data sharing** across nodes through iSCSI
-* Removes the need for shuffle daemons or data transfer services
-* Allows intermediate files to be accessed as if they were local files
+Conventional MapReduce systems exchange intermediate data through **application-level transfer services** such as shuffle handlers and fetchers. These services coordinate the movement of intermediate data between workers during the shuffle phase.
 
-A central focus of the research is resolving **cache inconsistency issues** that occur when multiple nodes access the same iSCSI volumes without a distributed file system.
+This prototype implements a **MapReduce data-access model** that provides **direct intermediate-data access** over **shared block storage**. Reducers read intermediate files stored on a **shared iSCSI volume**
+instead of transferring data between nodes through dedicated transfer services.
 
-## Documentation
-For full details—including cache analysis, system design, experimental findings, and architectural diagrams—please refer to this 
-**Technical Report:** [blfs_mr.pdf](docs/blfs_mr.pdf)
+The implementation was developed to examine the feasibility of the direct-access model and to explore system-level behavior. It is not designed as a production-ready MapReduce system and does not attempt to evaluate performance improvements.
 
-## Key Features
-* **Asynchronous message-driven master-worker model**\
-Built on my [msg_pass](https://github.com/wjnlim/msg_pass.git) library
-* **iSCSI-based shared intermediate storage**\
-Direct block-level data access across nodes without network-based data copying.
-* **Simplified MapReduce workflow**\
-No shuffle handler, fetcher, or auxiliary data transfer daemons.
-* **Cache-Consistent Shared Access using:**
-    * **Pre-allocated** intermediate files
-    * Explicit **fsync()** on both file and block device
-    * **O_DIRECT** reads on reducers to bypass page cache
-* **Notes**
-    * This project is mainly for an **experimental** MapReduce framework design.\
-    Thus, the implementation may lack fault-tolerance, load balancing, proper error-handling, so please use it with caution.
-    * This project uses my [msg_pass](https://github.com/wjnlim/msg_pass.git) library. The CMake file will automatically fetch the project internally
-    * The blfs_mr library depends on pthread, so you must link with **-lpthread**.
+## Direct-Access Model
+MapReduce intermediate data follows a characteristic access pattern: it is written once by a mapper and subsequently read by reducers.
+This single-writer, multiple-reader pattern naturally constrains concurrent file access.
 
-## Core Concept: Pre-Allocated Files Approach
-ISCSI provides no built-in cache coherence and most file systems do
-not have built-in conflict resolution for shared access.
-Thus, sharing iSCSI volumes among workers without a distributed file system creates cache inconsistency problems, where reducers do not detect new files created by mappers.
-While explicit cache-dropping before every intermediate file opening fixes the issue, it is prohibitively expensive.
+Based on this property, the model explores a direct-access approach in which intermediate data is stored on shared block storage and accessed directly by workers.
 
-To address this, the framework adopts:
-* **Pre-Allocated Files Strategy**
-  * All intermediate files are created on each node’s local iSCSI target before that target disk is mounted by remote nodes.
-  * Mappers are assigned pre-created intermediate files and simply overwrite them rather than creating new ones.
-  * Mappers flush intermediate data using ```fsync(fd)``` and ```fsync(blkdev_fd)```
-  to ensure durability.
-  * Reducers open the files using O_DIRECT and read intermediate data bypassing page caches
-  * No cache-dropping is required on reducer nodes
-  * **Notes**
-    * This experimental design was implemented based on an assumption that
-      each node has enough pre-allocated file for tasks.
-  
-This ensures consistent shared access without needing a distributed file system and without imposing expensive cache invalidation operations.
-## How the MapReduce framework works using intermediate file sharing
-![Execution overview](images/Execution%20overview.png)
+It operates without a shared filesystem layer, avoiding additional filesystem-level coordination.
 
-0. The ```run_mapred.sh``` script takes a user-provided MapReduce program—implementing the ```Mapper```, ```Reducer``` functions and calling ```MR_run_task()```—as input. It copies the MapReduce executable to all worker nodes and launches the ```master``` process.
-1. The master assigns map tasks to workers where input splits are located and
-assigns reduce tasks to workers with the smallest current task load.
-2. Each worker spawns processes to run the MapReduce program. The program
-invokes ```MR_run_task()``` to execute the assigned task. Map tasks run the user-defined ```Mapper``` function.
-3. Mappers write intermediate data to pre-allocated files provided by their local worker processes and flush the data using both ```fsync(fd)``` and ```fsync(blkdev fd)```. Then they notify task completions to the master.
-4. When reducers are notified by the master about these files, they open the files using the ```O_DIRECT``` flag and read the data directly from remote shared disks.
-5.  After reading all intermediate data, reducers run the user-defined ```Reducer``` function and write final outputs to their local disks.
+In this model, mappers write intermediate data to files on a shared iSCSI volume, and reducers open and read these files from the shared storage.
 
-## Quick Start Guide
+## Shared Storage Behavior & Experimental Controls
+
+Operating the model without a shared filesystem layer exposes a key system constraint when multiple nodes access the same block device: file visibility across nodes depends on how filesystem metadata is cached and updated on each host.
+
+In the shared iSCSI storage environment assumed by the model, files created on one node may not become visible to other nodes because iSCSI provides no cache-coherence mechanisms across hosts.
+
+During experimentation with multi-node access to the shared volume, this behavior manifested as file lookup failures when reducers attempted to open intermediate files stored on the shared volume. In particular, stale directory metadata and cached negative dentries prevented reducers from opening these intermediate files.
+
+To address these issues, several explicit controls were introduced:
+- **Pre-allocated intermediate files** were created in advance on the shared volume and reused as intermediate-data containers to maintain consistent directory metadata across nodes.
+- **Explicit durability control** was applied after writes using `fsync()` on both the file descriptor and the underlying block device to ensure that file updates became visible across hosts.
+- **O_DIRECT reads** were performed by reducers to bypass the page cache for direct reads from shared storage.
+
+These controls allow intermediate files on the shared iSCSI volume to become consistently visible to worker nodes without introducing a shared filesystem layer.
+
+A detailed discussion of the kernel-level behavior, cache interactions, and experimental observations is provided in the accompanying technical report
+([mr_direct_data_access.pdf](docs/mr_direct_data_access.pdf)).
+## System Architecture & Implementation
+
+To realize the direct-access model in an executable form, **the MapReduce prototype** was implemented as a layered system stack.
+
+The system is composed of three primary layers: a MapReduce framework layer, an asynchronous communication layer, and an event-driven I/O engine. These components together support distributed task coordination and the execution of MapReduce jobs in the prototype.
+
+
+The diagram below illustrates the execution structure of the framework and the interaction between the master, worker nodes, and shared storage during MapReduce job execution.
+
+![Execution Structure of the Direct-Access MapReduce Framework](images/Execution%20Structure%20of%20the%20Direct-Access%20MapReduce.png)
+
+### MapReduce Framework Layer
+
+The framework layer implements the MapReduce execution logic used in the prototype.
+
+- Input data is partitioned into **input splits** and distributed to worker nodes before job execution.
+- The master assigns map/reduce tasks and coordinates task execution.
+- Map tasks read input splits and write intermediate data to assigned **pre-allocated files**('sharedfiles' on diagram) on **the shared storage** of their worker nodes.
+- The master tracks the locations of these intermediate files and coordinates reduce task execution.
+- Reduce tasks open and read intermediate files **directly** from the corresponding mapper-node shared storage.
+- Reducers produce **output partitions** as the final result.
+
+This design removes application-level intermediate data transfer services (e.g., shuffle handlers and fetchers) typically used for exchanging intermediate data between workers.
+
+### Asynchronous Message-Passing Layer
+
+The prototype uses a message-passing library ([msg_pass](https://github.com/wjnlim/msg_pass.git)) to support master–worker communication.
+
+- Messages are exchanged asynchronously between master and worker processes.
+
+### Epoll-Based Event Engine
+
+The prototype uses an epoll-based event engine ([ep_engine](https://github.com/wjnlim/ep_engine.git)), which provides the event-driven I/O foundation for the communication layer.
+
+## Repository Layout and Usage
 ### Scripts and Configuration Files
-```sharedfiles```: Contains a list of **\<filename\>:\<size\>** pairs, one per line, 
+The repository includes several scripts and configuration files used to set up the cluster environment and run MapReduce jobs.
+
+- ```sharedfiles```: Contains a list of **\<filename\>:\<size\>** pairs, one per line, 
 specifying the pre-allocated intermediate files.
 
-```alloc_shared_files.sh```: Creates the shared intermediate files listed in ```sharedfiles``` on the device provided as input.
+- ```alloc_shared_files.sh```: Creates the shared intermediate files (listed in ```sharedfiles```) on the device provided as input.
 
-```set_env.sh```: Sets the ```BLFS_MR_HOME``` envrionment variable, which defines the project’s base directory.
+- ```set_env.sh```: Sets the ```DA_MR_HOME``` envrionment variable, which defines the project’s base directory.
 
-```workers```: Contains **\<worker name\>:\<ip\>** pairs. Used by scripts for worker name ↔ IP resolution.
+- ```workers```: Contains **\<worker name\>:\<ip\>** pairs. Used by scripts for worker name ↔ IP resolution.
 
-```mnt_targets.sh```: Logs into all worker nodes' iSCSI targets and mounts them under the ```$BLFS_MR_HOME/mnt``` directory.
+- ```mnt_targets.sh```: Logs into all worker nodes' iSCSI targets and mounts them under the ```$DA_MR_HOME/mnt``` directory.
 
-```init_workers.sh```: Initializes worker nodes by creating directories for input splits(```$BLFS_MR_HOME/data/inputs```), output partitions(```$BLFS_MR_HOME/data/outputs```), and MapReduce executables(```$BLFS_MR_HOME/mapred_bin```).
+- ```init_workers.sh```: Initializes worker nodes by creating directories for input splits(```$DA_MR_HOME/data/inputs```), output partitions(```$DA_MR_HOME/data/outputs```), and MapReduce executables(```$DA_MR_HOME/mapred_bin```).
 It also runs the ```mnt_targets.sh``` on each node, and generates the ```workers_n_splits``` metadata file, which stores
 **\<worker\>:\<num_of_input_split\>** pairs used for input split distribution.
 
 
-```gen_wordcount_input.sh```: Generates a random input file for the WordCount MapReduce example.
+- ```gen_wordcount_input.sh```: Generates a random input file for the WordCount MapReduce example.
 
-```distr_input.sh```: Distributes an input file across the specified workers and produces a metadata file containing **\<file path\>:\<worker\>** mappings.
+- ```distr_input.sh```: Distributes an input file across the specified workers and produces a metadata file containing **\<file path\>:\<worker\>** mappings.
 
-```rm_isplits.sh```: Deletes the metadata and input splits associated with a given input.
+- ```rm_isplits.sh```: Deletes the metadata and input splits associated with a given input.
 
-```rm_outputs.sh```: Deletes the metadata and partitions associated with a given output.
+- ```rm_outputs.sh```: Deletes the metadata and partitions associated with a given output.
 
-```print_output.sh```: Prints the final output by merging all output partitions.
+- ```print_output.sh```: Prints the final output by merging all output partitions.
 
-```run_worker.sh```: Start a worker process.
+- ```run_worker.sh```: Start a worker process.
 
-```start_workers.sh```: Starts worker processes on all worker nodes.
+- ```start_workers.sh```: Starts worker processes on all worker nodes.
 
-```stop_workers.sh```: Stops worker processes on all worker nodes.
+- ```stop_workers.sh```: Stops worker processes on all worker nodes.
 
-```run_mapred.sh```: Copies a user-provided MapReduce executable to all workers and launches the ```master``` program to execute the MapReduce workflow.
+- ```run_mapred.sh```: Copies a user-provided MapReduce executable to all workers and launches the ```master``` program to execute the MapReduce workflow.
 
-### WordCount Example
-Example setup on a 4-node cluster (1 GB shared volumes, 32 MB input, 2 MB intermediate files).
-#### Prerequisites
+### Cluster prerequisites
+The project assumes a 4-node cluster environment with passwordless SSH from the master to all nodes.
 1. Prepare 4 nodes, for example:
-    - master/worker0 (172.30.1.33) // this also runs the master process
-    - worker1 (172.30.1.34)
-    - worker2 (172.30.1.35)
-    - worker3 (172.30.1.36)\
-(The project assumes passwordless SSH from the master to all nodes.)
-2. Prepare a dedicated raw block device on each node for the shared iSCSI target, 
+   - master/worker0 (172.30.1.33) // this also runs the master process
+   - worker1 (172.30.1.34)
+   - worker2 (172.30.1.35)
+   - worker3 (172.30.1.36)
+1. Prepare a dedicated raw block device on each node for the shared iSCSI target, 
 e.g.:
     - /dev/sdX
-3. Obtain each node’s initiator name using: ```cat /etc/iscsi/initiatorname.iscsi```:
+1. Obtain each node’s initiator name using: ```cat /etc/iscsi/initiatorname.iscsi```:
    - worker0: iqn.1994-05.com.redhat:AAAA
    - worker1: iqn.1994-05.com.redhat:BBBB
    - worker2: iqn.1994-05.com.redhat:CCCC
    - worker3: iqn.1994-05.com.redhat:DDDD
-#### Per-Node Setup (the following steps must be performed on **each node**)
 
+### System setup
+#### Per-Node Setup (the following steps must be performed on **each node**)
 1. Configure the iSCSI target.\
 Replace \<worker name\>, /dev/sdX, /dev/sdY, \<ip\>,  and initiator IQNs ('iqn.1994-05.com.redhat:AAAA',...) with your values.
 ```bash
@@ -177,17 +185,17 @@ sudo mkfs.ext4 /dev/sdY
 
 2. Build and install the project:
 ```bash
-git clone https://github.com/wjnlim/blfs_mr.git
+git clone https://github.com/wjnlim/da_mr.git
 
-mkdir blfs_mr/build
-cd blfs_mr/build
+mkdir da_mr/build
+cd da_mr/build
 
 cmake -DCMAKE_INSTALL_PREFIX=<your install directory> ..
 cmake --build . --target install
 ```
 3. Set the project environment variable:
 ```bash
-# Change directory to blfs_mr/
+# Change directory to da_mr/
 cd ..
 ./set_env.sh && source ~/.bashrc
 ```
@@ -199,16 +207,16 @@ cd ..
 ---
 #### Master-Node Setup
 1. configure the ```workers``` file with **\<worker name\>:\<ip\>** pairs, one per line.
-2. **After the per-node setup is complete,**, Initialize the workers from the master:
+2. **After the per-node setup is complete**, Initialize the workers from the master:
 ```bash
 ./init_workers.sh
 ```
-#### Run a MapReduce program
+### Run a WordCount example
 1. Write and compile a MapReduce program
 (example: [mr_wordcount.c](mr_wordcount.c)):
 ```bash
 gcc mr_wordcount.c -o mr_wordcount -I <your install directory>include/ \
-<your install directory>lib/libblfs_mr.a -lpthread
+<your install directory>lib/libda_mr.a -lpthread
 ```
 2. (Optional) Generate a WordCount input:
 ```bash
