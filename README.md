@@ -1,4 +1,4 @@
-# Direct-Access MapReduce Framework
+# direct-access-mapreduce — MapReduce Framework with Direct Data Access
 
 An experimental MapReduce prototype for direct intermediate-data access over shared block storage.
 
