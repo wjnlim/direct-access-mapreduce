@@ -26,7 +26,7 @@ In this model, mappers write intermediate data to files on a shared iSCSI volume
 
 Operating the model without a shared filesystem layer exposes a key system constraint when multiple nodes access the same block device: file visibility across nodes depends on how filesystem metadata is cached and updated on each host.
 
-In the shared iSCSI storage environment assumed by the model, files created on one node may not become visible to other nodes because iSCSI provides no cache-coherence mechanisms across hosts.
+In the shared iSCSI storage environment in which the model operates, files created on one node may not become visible to other nodes because iSCSI provides no cache-coherence mechanisms across hosts.
 
 During experimentation with multi-node access to the shared volume, this behavior manifested as file lookup failures when reducers attempted to open intermediate files stored on the shared volume. In particular, stale directory metadata and cached negative dentries prevented reducers from opening these intermediate files.
 
