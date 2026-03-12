@@ -14,7 +14,8 @@ The implementation was developed to examine the feasibility of the direct-access
 
 ## Direct-Access Model
 MapReduce intermediate data follows a characteristic access pattern: it is written once by a mapper and subsequently read by reducers.
-This single-writer, multiple-reader pattern naturally constrains concurrent file access.
+This single-writer, multiple-reader pattern naturally prevents concurrent
+writes and write–read conflicts.
 
 Based on this property, the model explores a direct-access approach in which intermediate data is stored on shared block storage and accessed directly by workers.
 
