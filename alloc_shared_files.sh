@@ -6,7 +6,7 @@ if [ $# -ne 1 ]; then
 fi
 
 shared_dev="$1"
-tmp_dir="$DA_MR_HOME/tmpdir"
+tmp_dir="$DIRECT_ACCESS_MR_HOME/tmpdir"
 mkdir -p $tmp_dir && sudo mount $shared_dev $tmp_dir
 
 shfile_list="sharedfiles"

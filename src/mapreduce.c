@@ -13,7 +13,7 @@
 #include <dirent.h>
 #include <signal.h>
 
-#include "da_mr/mapreduce.h"
+#include "direct_access_mr/mapreduce.h"
 #include "msg_pass/mp_buf_sizes.h"
 #include "msg_pass/mp_client.h"
 #include "utils/my_err.h"

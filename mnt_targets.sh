@@ -6,7 +6,7 @@ if [ $# -ne 1 ];then
 fi
 
 worker_name="$1"
-workerlist="$DA_MR_HOME/workers"
+workerlist="$DIRECT_ACCESS_MR_HOME/workers"
 
 for line in $(cat $workerlist); do
     worker="$(echo $line | awk -F: '{print $1}')"
@@ -18,7 +18,7 @@ done
 
 for worker in $(cat $workerlist | awk -F: '{print $1}'); do
     dev=$(lsscsi | awk "/${worker}_shared/ {print \$NF}")
-    dir=$DA_MR_HOME/mnt/$worker
+    dir=$DIRECT_ACCESS_MR_HOME/mnt/$worker
 
     mkdir -p $dir
 

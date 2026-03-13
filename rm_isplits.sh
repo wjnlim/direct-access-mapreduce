@@ -21,7 +21,7 @@ fi
 metafile_name="$(basename $metainfo_file)"
 metafile_name="${metafile_name%.meta}"
 
-dir="\$DA_MR_HOME/data/inputs/${metafile_name}"
+dir="\$DIRECT_ACCESS_MR_HOME/data/inputs/${metafile_name}"
 # for line in $(sed 's!/[^/]*:!:!g' "$metainfo_file" | sort | uniq -c | awk '{print $2 ":" $1}');
 for line in $(awk -F: '{print $2}' "$metainfo_file" | sort | uniq -c | awk '{print $2 ":" $1}');
 do

@@ -21,7 +21,7 @@ fi
 metafile_name="$(basename $metainfo_file)"
 metafile_name="${metafile_name%.meta}"
 
-dir="\$DA_MR_HOME/data/outputs/${metafile_name}"
+dir="\$DIRECT_ACCESS_MR_HOME/data/outputs/${metafile_name}"
 
 # for line in $(sed 's!/[^/]*:!:!g' "$metainfo_file" | sort | uniq);
 for line in $(cat $workerlist);

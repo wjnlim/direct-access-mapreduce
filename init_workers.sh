@@ -36,20 +36,20 @@ do
     worker_ip="$(echo $line | awk -F: '{print $2}')"
     # copy the 'workers' file
     if ! is_local_ip "$worker_ip"; then
-        remote_dir=$(ssh $worker_ip "echo \$DA_MR_HOME")
+        remote_dir=$(ssh $worker_ip "echo \$DIRECT_ACCESS_MR_HOME")
         sftp $worker_ip <<EOF
 put "$workerlist" "$remote_dir"
 bye
 EOF
     fi
     # echo $worker_ip
-    ssh "$worker_ip" "mkdir -p \$DA_MR_HOME/data/inputs; mkdir \$DA_MR_HOME/data/outputs;\
-    mkdir \$DA_MR_HOME/mapred_bin; \$DA_MR_HOME/mnt_targets.sh $worker"
-    # ssh "$worker_ip" 'mkdir -p $DA_MR_HOME/data/inputs; mkdir $DA_MR_HOME/data/outputs;\
-    # mkdir $DA_MR_HOME/mnt'
+    ssh "$worker_ip" "mkdir -p \$DIRECT_ACCESS_MR_HOME/data/inputs; mkdir \$DIRECT_ACCESS_MR_HOME/data/outputs;\
+    mkdir \$DIRECT_ACCESS_MR_HOME/mapred_bin; \$DIRECT_ACCESS_MR_HOME/mnt_targets.sh $worker"
+    # ssh "$worker_ip" 'mkdir -p $DIRECT_ACCESS_MR_HOME/data/inputs; mkdir $DIRECT_ACCESS_MR_HOME/data/outputs;\
+    # mkdir $DIRECT_ACCESS_MR_HOME/mnt'
     # for l in $(cat $workerlist);
     # do
     #     w="$(echo $l | awk -F: '{print $1}')"
-    #     ssh "$worker_ip" "mkdir \$DA_MR_HOME/mnt/$w"
+    #     ssh "$worker_ip" "mkdir \$DIRECT_ACCESS_MR_HOME/mnt/$w"
     # done
 done

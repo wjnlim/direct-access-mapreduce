@@ -66,13 +66,13 @@ This design removes application-level intermediate data transfer services (e.g.,
 
 ### Asynchronous Message-Passing Layer
 
-The prototype uses a message-passing library ([msg_pass](https://github.com/wjnlim/msg_pass.git)) to support master–worker communication.
+The prototype uses a message-passing library ([msg_pass](https://github.com/wjnlim/msg_pass)) to support master–worker communication.
 
 - Messages are exchanged asynchronously between master and worker processes.
 
 ### Epoll-Based Event Engine
 
-The prototype uses an epoll-based event engine ([ep_engine](https://github.com/wjnlim/ep_engine.git)), which provides the event-driven I/O foundation for the communication layer.
+The prototype uses an epoll-based event engine ([ep_engine](https://github.com/wjnlim/ep_engine)), which provides the event-driven I/O foundation for the communication layer.
 
 ## Repository Layout and Usage
 ### Scripts and Configuration Files
@@ -83,13 +83,13 @@ specifying the pre-allocated intermediate files.
 
 - ```alloc_shared_files.sh```: Creates the shared intermediate files (listed in ```sharedfiles```) on the device provided as input.
 
-- ```set_env.sh```: Sets the ```DA_MR_HOME``` envrionment variable, which defines the project’s base directory.
+- ```set_env.sh```: Sets the ```DIRECT_ACCESS_MR_HOME``` envrionment variable, which defines the project’s base directory.
 
 - ```workers```: Contains **\<worker name\>:\<ip\>** pairs. Used by scripts for worker name ↔ IP resolution.
 
-- ```mnt_targets.sh```: Logs into all worker nodes' iSCSI targets and mounts them under the ```$DA_MR_HOME/mnt``` directory.
+- ```mnt_targets.sh```: Logs into all worker nodes' iSCSI targets and mounts them under the ```$DIRECT_ACCESS_MR_HOME/mnt``` directory.
 
-- ```init_workers.sh```: Initializes worker nodes by creating directories for input splits(```$DA_MR_HOME/data/inputs```), output partitions(```$DA_MR_HOME/data/outputs```), and MapReduce executables(```$DA_MR_HOME/mapred_bin```).
+- ```init_workers.sh```: Initializes worker nodes by creating directories for input splits(```$DIRECT_ACCESS_MR_HOME/data/inputs```), output partitions(```$DIRECT_ACCESS_MR_HOME/data/outputs```), and MapReduce executables(```$DIRECT_ACCESS_MR_HOME/mapred_bin```).
 It also runs the ```mnt_targets.sh``` on each node, and generates the ```workers_n_splits``` metadata file, which stores
 **\<worker\>:\<num_of_input_split\>** pairs used for input split distribution.
 
@@ -186,17 +186,17 @@ sudo mkfs.ext4 /dev/sdY
 
 2. Build and install the project:
 ```bash
-git clone https://github.com/wjnlim/da_mr.git
+git clone https://github.com/wjnlim/direct-access-mapreduce.git
 
-mkdir da_mr/build
-cd da_mr/build
+mkdir direct_access_mr/build
+cd direct_access_mr/build
 
 cmake -DCMAKE_INSTALL_PREFIX=<your install directory> ..
 cmake --build . --target install
 ```
 3. Set the project environment variable:
 ```bash
-# Change directory to da_mr/
+# Change directory to direct_access_mr/
 cd ..
 ./set_env.sh && source ~/.bashrc
 ```
@@ -217,7 +217,7 @@ cd ..
 (example: [mr_wordcount.c](mr_wordcount.c)):
 ```bash
 gcc mr_wordcount.c -o mr_wordcount -I <your install directory>include/ \
-<your install directory>lib/libda_mr.a -lpthread
+<your install directory>lib/libdirect_access_mr.a -lpthread
 ```
 2. (Optional) Generate a WordCount input:
 ```bash

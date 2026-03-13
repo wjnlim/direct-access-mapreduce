@@ -1,3 +1,3 @@
 #! /bin/bash
 
-echo "export DA_MR_HOME=$PWD" >> $HOME/.bashrc 
+echo "export DIRECT_ACCESS_MR_HOME=$PWD" >> $HOME/.bashrc 
