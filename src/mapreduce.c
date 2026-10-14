@@ -252,19 +252,19 @@ static int write_to_mapoutput_file() {
         goto FSYNC_OFD_ERR;
     }
 
-    int dev_fd = open(g_mctx.shared_dev_file, O_RDONLY);
-    if (dev_fd < 0) {
-        err_msg_sys("[(%d)(%s)mapreduce.c: write_to_mapoutput_file()] open(dev fd) error", getpid(), g_task_id);
-        goto OPEN_DEV_ERR;
-    }
+    // int dev_fd = open(g_mctx.shared_dev_file, O_RDONLY);
+    // if (dev_fd < 0) {
+    //     err_msg_sys("[(%d)(%s)mapreduce.c: write_to_mapoutput_file()] open(dev fd) error", getpid(), g_task_id);
+    //     goto OPEN_DEV_ERR;
+    // }
 
-    if (fsync(dev_fd) < 0) {
-        err_msg_sys("[(%d)(%s)mapreduce.c: write_to_mapoutput_file()] fsync(dev fd) error", getpid(), g_task_id);
-        goto FSYNC_DEV_ERR;
-    }
+    // if (fsync(dev_fd) < 0) {
+    //     err_msg_sys("[(%d)(%s)mapreduce.c: write_to_mapoutput_file()] fsync(dev fd) error", getpid(), g_task_id);
+    //     goto FSYNC_DEV_ERR;
+    // }
 
     fclose(ofs);
-    close(dev_fd);
+    // close(dev_fd);
 
     assert(n_written == g_mctx.partitions_data_size);
     g_mctx.mapoutput.size = n_written;
@@ -272,8 +272,8 @@ static int write_to_mapoutput_file() {
 
     return 0;
 
-FSYNC_DEV_ERR:
-    close(dev_fd);
+// FSYNC_DEV_ERR:
+//     close(dev_fd);
 OPEN_DEV_ERR:
 FSYNC_OFD_ERR:
 FFLUSH_ERR:

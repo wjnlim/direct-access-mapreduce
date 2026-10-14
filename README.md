@@ -29,12 +29,12 @@ Operating the model without a shared filesystem layer exposes a key system const
 
 In the shared iSCSI storage environment in which the model operates, files created on one node may not become visible to other nodes because iSCSI provides no cache-coherence mechanisms across hosts.
 
-During experimentation with multi-node access to the shared volume, this behavior manifested as file lookup failures when reducers attempted to open intermediate files stored on the shared volume. In particular, stale directory metadata and cached negative dentries prevented reducers from opening these intermediate files.
+During experimentation with multi-node access to the shared volume, this behavior manifested as file lookup failures when reducers attempted to open newly-created intermediate files stored on the shared volume. In particular, stale directory metadata and cached negative dentries prevented reducers from opening these intermediate files successfully.
 
 To address these issues, several explicit controls were introduced:
-- **Pre-allocated intermediate files** were created in advance on the shared volume and reused as intermediate-data containers to maintain consistent directory metadata across nodes.
-- **Explicit durability control** was applied after writes using `fsync()` on both the file descriptor and the underlying block device to ensure that file updates became visible across hosts.
-- **O_DIRECT reads** were performed by reducers to bypass the page cache for direct reads from shared storage.
+- **Pre-allocated intermediate files**: Instead of creating intermediate files every time map tasks produce outputs, intermediate files were created in advance on each shared volume and reused as intermediate-data containers; This led each node to cache metadata for an idenditical file set and have the same view of the files when the node mounted the volume.
+- **Explicit durability control**: After intermediate data was written to a pre-alloacted file, `fsync()` was called on the file to ensure that the data blocks were written to the shared disk.
+- **O_DIRECT reads**: `read()` with `O_DIRECT` flag was called by reducers to bypass the page cache for direct reads from shared storage.
 
 These controls allow intermediate files on the shared iSCSI volume to become consistently visible to worker nodes without introducing a shared filesystem layer.
 
